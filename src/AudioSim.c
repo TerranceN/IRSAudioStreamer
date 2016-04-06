@@ -14,8 +14,6 @@ typedef struct {
 struct AudioSim_s {
   int sampleRate;
   IRSFile* irsFile;
-  SoundFile *echoIR;
-  SoundFile *echoIR2;
 };
 
 struct AudioStream_s {
@@ -65,8 +63,6 @@ AudioSim* audioSim_init(char* irsFile) {
   // disregard irsFile and load our own echo file
   AudioSim* sim = malloc(sizeof(AudioSim));
   sim->irsFile = loadIRSFile(irsFile);
-  sim->echoIR = loadSound("echo.wav");
-  sim->echoIR2 = loadSound("echo2.wav");
   if (!sim->irsFile) {
     printf("Failed to load IRS file!\n");
   }
@@ -74,8 +70,8 @@ AudioSim* audioSim_init(char* irsFile) {
 }
 
 void audioSim_destroy(AudioSim* a) {
-  freeSound(a->echoIR);
-  freeSound(a->echoIR2);
+  free(a->irsFile);
+  free(a);
 }
 
 AudioStream* audioSim_initStream(AudioSim* a, float x, float y, float z) {
