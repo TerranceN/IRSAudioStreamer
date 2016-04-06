@@ -4,7 +4,7 @@
 typedef struct {
   double re;
   double im;
-} complexNum;
+} ComplexNum;
 //#include "fft.h"
 
 /* Convolves a signal in-place with a given impulse response
@@ -13,13 +13,13 @@ typedef struct {
  */
 short CONVOLVE(
     // Source
-    complexNum *srcSignal,
+    ComplexNum *srcSignal,
     int srcLen,
     // Impulse Response
-    complexNum *irSignal,
+    ComplexNum *irSignal,
     int irLen,
     // Destination
-    complexNum **dstSignal,
+    ComplexNum **dstSignal,
     int* dstLen);
 
 #endif

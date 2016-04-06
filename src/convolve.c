@@ -8,39 +8,39 @@
 
 short CONVOLVE(
     // Source
-    complexNum *srcSignal,
+    ComplexNum *srcSignal,
     int srcLen,
     // Impulse Response
-    complexNum *irSignal,
+    ComplexNum *irSignal,
     int irLen,
     // Destination
-    complexNum **dstSignal,
+    ComplexNum **dstSignal,
     int* dstLen) {
   int maxLen = srcLen+irLen-1;
 
   //printf("(%d, %d) -> %d\n", srcLen, irLen, maxLen);
 
-  complexNum* dst = malloc(maxLen*sizeof(complexNum));
-  complexNum* ir = malloc(maxLen*sizeof(complexNum));
+  ComplexNum* dst = malloc(maxLen*sizeof(ComplexNum));
+  ComplexNum* ir = malloc(maxLen*sizeof(ComplexNum));
 
   fftw_plan dstFFT;
-  dstFFT = fftw_plan_dft_1d(maxLen, dst, dst, FFTW_FORWARD, FFTW_ESTIMATE);
+  dstFFT = fftw_plan_dft_1d(maxLen, (double(*)[2])dst, (double(*)[2])dst, FFTW_FORWARD, FFTW_ESTIMATE);
 
   fftw_plan irFFT;
-  irFFT = fftw_plan_dft_1d(maxLen, ir, ir, FFTW_FORWARD, FFTW_ESTIMATE);
+  irFFT = fftw_plan_dft_1d(maxLen, (double(*)[2])ir, (double(*)[2])ir, FFTW_FORWARD, FFTW_ESTIMATE);
 
   fftw_plan dstIFFT;
-  dstIFFT = fftw_plan_dft_1d(maxLen, dst, dst, FFTW_BACKWARD, FFTW_ESTIMATE);
+  dstIFFT = fftw_plan_dft_1d(maxLen, (double(*)[2])dst, (double(*)[2])dst, FFTW_BACKWARD, FFTW_ESTIMATE);
 
   // set up the dst array as a copy of the src, 0-padded
-  memcpy(dst, srcSignal, srcLen*sizeof(complexNum));
-  memset(dst+srcLen, 0, (maxLen-srcLen)*sizeof(complexNum));
+  memcpy(dst, srcSignal, srcLen*sizeof(ComplexNum));
+  memset(dst+srcLen, 0, (maxLen-srcLen)*sizeof(ComplexNum));
 
   // copy the ir signal
-  memcpy(ir, irSignal, irLen*sizeof(complexNum));
+  memcpy(ir, irSignal, irLen*sizeof(ComplexNum));
 
   // zero pad the ir signal
-  memset(ir+irLen, 0, (maxLen-irLen)*sizeof(complexNum));
+  memset(ir+irLen, 0, (maxLen-irLen)*sizeof(ComplexNum));
 
   {
     fftw_execute(dstFFT);

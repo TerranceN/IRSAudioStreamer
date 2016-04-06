@@ -3,20 +3,24 @@
 #include <sndfile.h>
 #include <string.h>
 #include "convolve.h"
+#include "irs.h"
 
 typedef struct {
   SNDFILE* sf;
   SF_INFO info;
-  complexNum* data;
+  ComplexNum* data;
 } SoundFile;
 
 struct AudioSim_s {
   int sampleRate;
+  IRSFile* irsFile;
   SoundFile *echoIR;
+  SoundFile *echoIR2;
 };
 
 struct AudioStream_s {
   AudioSim* audioSim;
+  IRSSource* source;
   double* leftovers;
   double max;
 };
@@ -30,7 +34,7 @@ SoundFile* loadSound(char* fileName) {
     exit(-1);
   }
 
-  file->data = malloc(file->info.frames*sizeof(complexNum));
+  file->data = malloc(file->info.frames*sizeof(ComplexNum));
 
   int totalFrames = file->info.frames*file->info.channels;
   double* buf = malloc(totalFrames*sizeof(double));
@@ -60,19 +64,26 @@ void freeSound(SoundFile* s) {
 AudioSim* audioSim_init(char* irsFile) {
   // disregard irsFile and load our own echo file
   AudioSim* sim = malloc(sizeof(AudioSim));
+  sim->irsFile = loadIRSFile(irsFile);
   sim->echoIR = loadSound("echo.wav");
+  sim->echoIR2 = loadSound("echo2.wav");
+  if (!sim->irsFile) {
+    printf("Failed to load IRS file!\n");
+  }
   return sim;
 }
 
 void audioSim_destroy(AudioSim* a) {
   freeSound(a->echoIR);
+  freeSound(a->echoIR2);
 }
 
 AudioStream* audioSim_initStream(AudioSim* a, float x, float y, float z) {
   AudioStream* stream = malloc(sizeof(AudioStream));
   stream->audioSim = a;
+  stream->source = getClosestSource(a->irsFile, x, y, z);
   stream->leftovers = NULL;
-  stream->max = 0;
+  stream->max = 1.0;
   return stream;
 }
 
@@ -91,26 +102,39 @@ void audioSim_resetStream(AudioStream* s) {
 }
 
 void audioSim_modifyStream(AudioStream* s, float x, float y, float z, double* dst, double* src, int len) {
-  complexNum* srcComplex = malloc(len*sizeof(complexNum));
+  ComplexNum* srcComplex = malloc(len*sizeof(ComplexNum));
 
   for (int i = 0; i < len; i++) {
     srcComplex[i].re = src[i];
     srcComplex[i].im = 0;
   }
 
-  complexNum* dstComplex;
+  ComplexNum* dstComplex;
   int dstLen;
+
+  int irLen;
+  double* irDataDoubles;
+  getInterpolatedData(s->source, x, y, z, &irDataDoubles, &irLen);
+  ComplexNum* irData = malloc(irLen*sizeof(ComplexNum));
+
+  for (int i = 0; i < irLen; i++) {
+    irData[i].re = irDataDoubles[i];
+    irData[i].im = 0;
+  }
 
   CONVOLVE(
     srcComplex,
     len,
 
-    s->audioSim->echoIR->data,
-    s->audioSim->echoIR->info.frames,
+    irData,
+    irLen,
 
     &dstComplex,
     &dstLen
   );
+
+  free(irData);
+  free(irDataDoubles);
 
   int numLeftoversUsed = len;
   if (len > dstLen-len) {
@@ -122,21 +146,21 @@ void audioSim_modifyStream(AudioStream* s, float x, float y, float z, double* ds
     dst[i] = dstComplex[i].re;
     if (s->leftovers != NULL && i < numLeftoversUsed) {
       dst[i] += s->leftovers[i];
-      if (abs(dst[i]) > s->max) {
-        s->max = abs(dst[i]);
-      }
       s->leftovers[i] = 0;
+    }
+    if (abs(dst[i]) > s->max) {
+      s->max = abs(dst[i]);
     }
   }
 
   for (int i = 0; i < len; i++) {
-    dst[i] = 0.5 * dst[i] / s->max;
+    dst[i] = 0.99 * (dst[i] / s->max);
   }
 
   // record leftovers
   double* newLeftovers = malloc((dstLen - len)*sizeof(double));
   memset(newLeftovers, 0, (dstLen - len)*sizeof(double));
-  if (s->leftovers != NULL && numLeftoversUsed < dst-len) {
+  if (s->leftovers != NULL && numLeftoversUsed < dstLen-len) {
     memcpy(newLeftovers, s->leftovers+len, (dstLen-len-numLeftoversUsed)*sizeof(double));
   }
   for (int i = len; i < dstLen; i++) {
