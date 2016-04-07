@@ -1,7 +1,7 @@
 #include "convolve.h"
 #include "stdlib.h"
 #include "stdio.h"
-#include "math.h"
+#include <math.h>
 #include "stdbool.h"
 #include "string.h"
 #include <fftw3.h>
@@ -57,8 +57,8 @@ short CONVOLVE(
     fftw_execute(dstIFFT);
 
     for (int i = 0; i < maxLen; i++) {
-      dst[i].re = dst[i].re / maxLen;
-      dst[i].im = dst[i].im / maxLen;
+      dst[i].re = 0.25 * dst[i].re / maxLen;
+      dst[i].im = 0.25 * dst[i].im / maxLen;
     }
   }
 

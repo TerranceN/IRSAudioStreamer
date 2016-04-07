@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <sndfile.h>
 #include <string.h>
+#include <math.h>
 #include "convolve.h"
 #include "irs.h"
 
@@ -144,8 +145,8 @@ void audioSim_modifyStream(AudioStream* s, float x, float y, float z, double* ds
       dst[i] += s->leftovers[i];
       s->leftovers[i] = 0;
     }
-    if (abs(dst[i]) > s->max) {
-      s->max = abs(dst[i]);
+    if (fabs(dst[i]) > s->max) {
+      s->max = fabs(dst[i]);
     }
   }
 

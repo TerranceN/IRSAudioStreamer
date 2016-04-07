@@ -127,6 +127,8 @@ IRSFile* loadIRSFile(char* filename) {
     irsFile->header = header;
     irsFile->nSources = header.nSources;
 
+    double maxSample;
+
     {
       IRSSourceHeaderChunk sourceHeaderChunk;
       fread(&sourceHeaderChunk, sizeof(IRSSourceHeaderChunk), 1, file);
@@ -184,6 +186,9 @@ IRSFile* loadIRSFile(char* filename) {
           fread(buffer, sizeof(float), irsFile->sources[i].dataLen, file);
           float* resampled = resample_22050_to_44100(buffer, irsFile->sources[i].dataLen);
           for (int k = 0; k < irsFile->sources[i].dataLen*2; k++) {
+            if (fabs(resampled[k]) > maxSample) {
+              maxSample = resampled[k];
+            }
             listener->data[k] = resampled[k];
           }
           free(resampled);
@@ -192,6 +197,17 @@ IRSFile* loadIRSFile(char* filename) {
         irsFile->sources[i].dataLen *= 2;
         free(buffer);
       }
+
+      for (int i =0; i < header.nSources; i++) {
+        for (int j = 0; j < irsFile->sources[i].nListeners; j++) {
+          IRSListener* listener = irsFile->sources[i].listeners[j];
+          for (int k = 0; k < irsFile->sources[i].dataLen; k++) {
+            listener->data[k] /= maxSample;
+          }
+        }
+      }
+      printf("Max: %f\n", maxSample);
+
     }
   } else {
     free(irsFile);
